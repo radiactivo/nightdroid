@@ -9,6 +9,8 @@ fuzzers/*
 lib/interfaces/*
 lib/__init__.py
 lib/crash_data.py
+lib/__init__.pyc
+lib/crash_data.pyc
 LICENSE
 LICENSE.txt
 mutators/
