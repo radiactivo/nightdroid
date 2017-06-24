@@ -5,8 +5,8 @@ doc/
 fuzzers/*
 !fuzzers/generic.cfg
 !fuzzers/android_fuzzer.py
-!lib/interfaces/adb_iface.py
 lib/interfaces/*
+!lib/interfaces/adb_iface.py
 lib/__init__.py
 lib/crash_data.py
 lib/__init__.pyc
