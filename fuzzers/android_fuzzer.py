@@ -3,7 +3,7 @@
 """
 Nightmare Fuzzing Project generic fuzzer
 Generic application fuzzer
-@author: joxean
+@developer: wormer
 """
 
 import os
@@ -28,16 +28,17 @@ try:
   from lib.interfaces import vtrace_iface, gdb_iface, asan_iface, pykd_iface, adb_iface
   has_pykd = True
 except ImportError:
-  from lib.interfaces import vtrace_iface, gdb_iface, asan_iface
+  from lib.interfaces import vtrace_iface, gdb_iface, asan_iface, adb_iface
   has_pykd = False
 
 #-----------------------------------------------------------------------
 class CGenericFuzzer:
-  def __init__(self, cfg, section):
+  def __init__(self, cfg, section, device_id=None):
     self.cfg = cfg
     self.section = section
     self.read_configuration()
-  
+    self.device_id = device_id
+    
     self.q = get_queue(name=self.tube_name, watch=True)
     self.delete_q = get_queue(name="delete", watch=False)
     self.crash_q = get_queue(name=self.crash_tube, watch=False)
@@ -147,7 +148,7 @@ class CGenericFuzzer:
         self.iface = gdb_iface
       elif self.debugging_interface == "asan":
         self.iface = asan_iface
-      elif: self.debugging_interface == "adb":
+      elif self.debugging_interface == "adb":
         self.iface = adb_iface
       else:
         self.iface = vtrace_iface
@@ -163,20 +164,25 @@ class CGenericFuzzer:
 
       self.asan_symbolizer_path = None
 
-  def launch_debugger(self, timeout, command, filename):
+  def launch_debugger(self, timeout, command, filename, file=None):
     if command.find("@@") > -1:
-        log(command.replace("@@", filename.split('/')[-1]))
-        cmd = [command.replace("@@", filename.split('/')[-1]), ]
+        tmp_cmd = command.replace("@@", file).replace('$$', self.device_id)
+        log(tmp_cmd)
+        cmd = [tmp_cmd, ]
     else:
       cmd = [command, filename]
 
     log("Launching debugger with command %s" % " ".join(cmd))
+    # if self.debugging_interface == "adb":
+    #     crash = self.iface.main(cmd=cmd, device_id=self.device_id)
+    
     if not has_pykd or self.iface != pykd_iface:
       self.iface.timeout = int(timeout)
       if self.debugging_interface == "asan":
         crash = self.iface.main(asan_symbolizer_path=self.asan_symbolizer_path, args=cmd)
-      elif: self.debugging_interface == "adb":
-        crash = self.iface.main(args=cmd)
+      elif self.debugging_interface == "adb":
+        log('CMD: %s ::: dev_id: %s'%(cmd,self.device_id))
+        crash = self.iface.main(cmd=cmd, device_id=self.device_id)
       else:
         crash = self.iface.main(cmd)
     else:
@@ -210,13 +216,18 @@ class CGenericFuzzer:
     crash = None
     for i in range(0,3):
       try:
-        crash = self.launch_debugger(self.timeout, self.command, filename)
+        crash = self.launch_debugger(self.timeout, self.command, filename, file)
         break
       except:
         log("Exception: %s" % sys.exc_info()[1])
         continue
 
+##################### THINGS CHANGE HERE
     if self.post_command is not None:
+      if pre_command.find("@@") > -1:
+        self.pre_command.replace('@@', file)
+      if pre_command.find("$$") > -1:
+        self.pre_command.replace('$$', self.device_id)
       os.system(self.post_command)
 
     if crash is not None:
@@ -271,27 +282,29 @@ def do_fuzz(cfg, section):
     raise
 
 #-----------------------------------------------------------------------
-def main(cfg, section):
+def main(cfg, section, device_id=None):
   procs = os.getenv("NIGHTMARE_PROCESSES")
   if procs is not None:
-    process_manager(int(procs), do_fuzz, (cfg, section))
+    process_manager(int(procs), do_fuzz, (cfg, section, device_id))
   else:
     try:
-      fuzzer = CGenericFuzzer(cfg, section)
+      fuzzer = CGenericFuzzer(cfg, section, device_id)
       fuzzer.fuzz()
     except:
       print "Error:", sys.exc_info()[1]
 
 #-----------------------------------------------------------------------
 def usage():
-  print "Usage:", sys.argv[0], "<config file> <fuzzer>"
+  print "Usage:", sys.argv[0], "<config file> <fuzzer> <device_id>"
   print
   print "Environment variables:"
   print "NIGHTMARE_PROCESSES     Number of processes to run at the same time"
   print
 
 if __name__ == "__main__":
-  if len(sys.argv) != 3:
-    usage()
-  else:
+  if len(sys.argv) == 4:
+    main(sys.argv[1], sys.argv[2], sys.argv[3])
+  elif len(sys.argv) == 3:
     main(sys.argv[1], sys.argv[2])
+  else:
+    usage()
