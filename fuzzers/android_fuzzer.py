@@ -166,8 +166,13 @@ class CGenericFuzzer:
 
   def launch_debugger(self, timeout, command, filename, file=None):
     if command.find("@@") > -1:
-        tmp_cmd = command.replace("@@", file).replace('$$', self.device_id)
-        log(tmp_cmd)
+        print command
+        print filename
+        print file
+        tmp_cmd = command.replace("@@", file)
+        tmp_cmd = tmp_cmd.replace('$$', self.device_id)
+        print tmp_cmd
+        log(str(tmp_cmd))
         cmd = [tmp_cmd, ]
     else:
       cmd = [command, filename]
@@ -207,16 +212,15 @@ class CGenericFuzzer:
       os.putenv(key, self.env[key])
 
     if self.pre_command is not None:
-      if pre_command.find("@@") > -1 and pre_command.find("$$") > -1:
-        self.pre_command.replace('@@', filename)
-        self.pre_command.replace('$$', file)
-        log(self.pre_command)
+      if self.pre_command.find("@@") > -1 and self.pre_command.find("$$") > -1:
+        self.pre_command = self.pre_command.replace('@@', filename)
+        self.pre_command = self.pre_command.replace('$$', file)
       os.system(self.pre_command)
 
     crash = None
     for i in range(0,3):
       try:
-        crash = self.launch_debugger(self.timeout, self.command, filename, file)
+        crash = self.launch_debugger(self.timeout, self.command, filename, file=file)
         break
       except:
         log("Exception: %s" % sys.exc_info()[1])
@@ -224,10 +228,10 @@ class CGenericFuzzer:
 
 ##################### THINGS CHANGE HERE
     if self.post_command is not None:
-      if pre_command.find("@@") > -1:
-        self.pre_command.replace('@@', file)
-      if pre_command.find("$$") > -1:
-        self.pre_command.replace('$$', self.device_id)
+      if self.post_command.find("@@") > -1:
+        self.post_command = self.post_command.replace('@@', file)
+      if self.post_command.find("$$") > -1:
+        self.post_command = self.pre_command.replace('$$', self.device_id)
       os.system(self.post_command)
 
     if crash is not None:
