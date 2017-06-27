@@ -37,7 +37,7 @@ class CGenericFuzzer:
     self.cfg = cfg
     self.section = section
     self.read_configuration()
-    self.device_id = device_id
+    self.device_id = device_id or 'emulator-5554'
     
     self.q = get_queue(name=self.tube_name, watch=True)
     self.delete_q = get_queue(name="delete", watch=False)
@@ -166,13 +166,8 @@ class CGenericFuzzer:
 
   def launch_debugger(self, timeout, command, filename, file=None):
     if command.find("@@") > -1:
-        print command
-        print filename
-        print file
         tmp_cmd = command.replace("@@", file)
-        tmp_cmd = tmp_cmd.replace('$$', self.device_id)
-        print tmp_cmd
-        log(str(tmp_cmd))
+        tmp_cmd = tmp_cmd.replace('$$', str(self.device_id))
         cmd = [tmp_cmd, ]
     else:
       cmd = [command, filename]
@@ -186,7 +181,6 @@ class CGenericFuzzer:
       if self.debugging_interface == "asan":
         crash = self.iface.main(asan_symbolizer_path=self.asan_symbolizer_path, args=cmd)
       elif self.debugging_interface == "adb":
-        log('CMD: %s ::: dev_id: %s'%(cmd,self.device_id))
         crash = self.iface.main(cmd=cmd, device_id=self.device_id)
       else:
         crash = self.iface.main(cmd)

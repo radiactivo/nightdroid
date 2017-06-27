@@ -48,6 +48,7 @@ class ADBInterface:
                 if 'Fatal signal' in l:
                     pass
     def dump_log(self):
+        log('going-to-dump')
         run_subproc('adb - s %s logcat >> %s' % (self.device_id, self.logfile))
         
     def run(self):
@@ -56,17 +57,17 @@ class ADBInterface:
         self.running = True
         t_log = threading.Thread(target=self.dump_log)
         t_log.start()
+        log('alive')
         t_parser = threading.Thread(target=self.parse_log, args=[])
-        run_subproc(str(self.cmd_start_log))
-        run_subproc(str(self.cmd))
-        run_subproc(str(self.cmd_finish_log))
+        run_subproc(self.cmd_start_log)
+        run_subproc(self.cmd)
+        run_subproc(self.cmd_finish_log)
         t_log.join()
         return None
 
 #-----------------------------------------------------------------------
 def main(cmd, device_id):
     logfile = mkstemp()[1]
-    log("Logfile in adb %s: %s" % (device_id,logfile))
     adb = ADBInterface(logfile, cmd, device_id)
     data = adb.run()
     remove(logfile)
