@@ -11,7 +11,7 @@ def run_subproc(cmd):
     r.wait()
 
 def flush_log(device_id):
-    cmd = 'adb -s ' + (str)(device_id) + ' logcat -c'
+    cmd = 'adb -s %s logcat -c'%(device_id)
     r = subprocess.Popen([cmd], shell=True)
     r.wait()
 

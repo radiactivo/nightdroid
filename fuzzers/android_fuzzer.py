@@ -209,6 +209,7 @@ class CGenericFuzzer:
       if self.pre_command.find("@@") > -1 and self.pre_command.find("$$") > -1:
         self.pre_command = self.pre_command.replace('@@', filename)
         self.pre_command = self.pre_command.replace('$$', file)
+      log('UPLOADING: %s'%self.pre_command)
       os.system(self.pre_command)
 
     crash = None
@@ -225,7 +226,8 @@ class CGenericFuzzer:
       if self.post_command.find("@@") > -1:
         self.post_command = self.post_command.replace('@@', file)
       if self.post_command.find("$$") > -1:
-        self.post_command = self.pre_command.replace('$$', self.device_id)
+        self.post_command = self.post_command.replace('$$', self.device_id)
+      log('POST: %s'%self.post_command)
       os.system(self.post_command)
 
     if crash is not None:
