@@ -12,6 +12,7 @@ from os import read, write, remove
 from tempfile import mkstemp
 import threading
 import subprocess
+from time import sleep
 
 sys.path.append("../")
 sys.path.append("../../runtime")
@@ -22,17 +23,21 @@ from utils import run_subproc, flush_log
 
 
 class ADBInterface:
-    def __init__(self, logfile, cmd, device_id):
+    def __init__(self, logfile, cmd, device_id, file):
         self.logfile = logfile
         self.cmd = cmd[0]
         self.device_id = device_id
         self.crash_data = None
         self.running = False
+        self.file = file
+        self.log = None
+        self.log_sbp = None
         self.cmd_start_log = 'adb -s %s shell log -p W -t nightmare Starting'% self.device_id
         self.cmd_finish_log = 'adb -s %s shell log -p W -t nightmare Finishing'% self.device_id
         self.cmd_pull_tombstone = 'adb -s %s shell'% self.device_id
-        self.log = None
-
+        self.cmd_logcat = 'adb -s %s logcat >> %s' % (self.device_id, self.logfile)
+        self.cmd_test = 'adb -s %s shell test -f /sdcard/dexs/%s'%(self.device_id, self.file)
+        
     def clear_log(self):
         flush_log(self.device_id)
 
@@ -51,48 +56,58 @@ class ADBInterface:
                 if 'nightmare' in l:
                     m = f.readline()
                     while 'nightmare' not in m:
-                        log_r.append(m)
+                        if m != '':
+                            if 'Fatal' in m:
+                                log('[*] WE GOT A CRASH[*]')
+                            log_r.append(m)
                         m = f.readline()
-                    self.log = log_r
                     break
                 l = f.readline()
-        log('[*] PARSE KILLED [*]')
+        self.log = log_r
         return
 
     def dump_log(self):
-        log_sbp = subprocess.Popen([str('adb -s %s logcat >> %s' % (self.device_id, self.logfile))], shell=True)
-        while self.running:
-            pass
-        log_sbp.kill()
-        log('[*] DUMP KILLED [*]')
+        log_sbp = None
+        try:
+            log_sbp = subprocess.Popen([self.cmd_logcat], shell=True)
+        except Exception, e:
+            log('Exception on dump log: %s'%e)
+        return log_sbp
 
     def run(self):
         # Log starting
         # ./adb shell log -p W -t Fuzz Starting
         flush_log(self.device_id)
+        # res = 1
+        # while res != 0:
+        #     try:
+        #         log(self.cmd_test)
+        #         p = subprocess.Popen([self.cmd_test], shell=True)
+        #     except Exception, e:
+        #         log(e)
+        #     sleep(0.05)
+        #     res = p.returncode
+        #     p.kill()
         self.running = True
-        t_log = threading.Thread(target=self.dump_log)
-        t_log.start()
+        self.log_sbp = self.dump_log()
         t_parser = threading.Thread(target=self.parse_log, args=[])
         t_parser.start()
         run_subproc(self.cmd_start_log)
         run_subproc(self.cmd)
         run_subproc(self.cmd_finish_log)
         self.running = False
-        t_log.join()
-        log('One finito...')
+        self.log_sbp.kill()
         t_parser.join()
-        log(''.join(self.log))
-        log('Arrived???')
-        return None
+        return self.log
 
 #-----------------------------------------------------------------------
-def main(cmd, device_id):
+def main(cmd, device_id, file):
     logfile = mkstemp()[1]
-    adb = ADBInterface(logfile, cmd, device_id)
+    adb = ADBInterface(logfile, cmd, device_id, file)
     data = adb.run()
     remove(logfile)
-    return data
+    print data
+    return None
 
 #-----------------------------------------------------------------------
 def usage():

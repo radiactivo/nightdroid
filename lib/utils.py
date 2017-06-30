@@ -6,6 +6,10 @@ import re
 import time
 import fnmatch
 
+sys.path.append("../runtime")
+
+from nfp_log import log
+
 def run_subproc(cmd):
     r = subprocess.Popen([cmd], shell=True)
     r.wait()

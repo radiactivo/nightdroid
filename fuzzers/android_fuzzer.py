@@ -17,12 +17,15 @@ from multiprocessing import Process, cpu_count
 
 sys.path.append("../")
 sys.path.append("../runtime")
+sys.path.append("../lib")
 
 import config
 
 from nfp_log import log, debug
 from nfp_queue import get_queue
 from nfp_process import process_manager
+
+from utils import run_subproc
 
 try:
   from lib.interfaces import vtrace_iface, gdb_iface, asan_iface, pykd_iface, adb_iface
@@ -181,7 +184,7 @@ class CGenericFuzzer:
       if self.debugging_interface == "asan":
         crash = self.iface.main(asan_symbolizer_path=self.asan_symbolizer_path, args=cmd)
       elif self.debugging_interface == "adb":
-        crash = self.iface.main(cmd=cmd, device_id=self.device_id)
+        crash = self.iface.main(cmd=cmd, device_id=self.device_id, file=file)
       else:
         crash = self.iface.main(cmd)
     else:
@@ -210,7 +213,7 @@ class CGenericFuzzer:
         self.pre_command = self.pre_command.replace('@@', filename)
         self.pre_command = self.pre_command.replace('$$', file)
       log('UPLOADING: %s'%self.pre_command)
-      os.system(self.pre_command)
+      run_subproc(self.pre_command)
 
     crash = None
     for i in range(0,3):
@@ -228,7 +231,7 @@ class CGenericFuzzer:
       if self.post_command.find("$$") > -1:
         self.post_command = self.post_command.replace('$$', self.device_id)
       log('POST: %s'%self.post_command)
-      os.system(self.post_command)
+      run_subproc(self.post_command)
 
     if crash is not None:
       self.crash_info = crash
